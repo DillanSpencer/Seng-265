@@ -95,9 +95,9 @@ int main(int argc, char *argv[]) {
 }
 
 void encode(FILE *in, FILE *out) {
-	int nextCode;
-	int character;
-	int stringCode;
+	unsigned int nextCode;
+	unsigned int character;
+	unsigned int stringCode;
 	unsigned int index;
 	unsigned int i;
 	nextCode = FIRST_CODE;
@@ -109,10 +109,15 @@ void encode(FILE *in, FILE *out) {
 
 	if ((stringCode = fgetc(in)) == EOF)
 		stringCode = END_CODE;
+		
+	int count = 0;
 
 	/* loop through the file until reaches the EOF */
 	while ((character = fgetc(in)) != -1) {
+		count++;
 		index = findChild(stringCode, character);
+		
+		if(index > DICTSIZE - 1) return;
 
 		if (dict[index].value != -1)
 			stringCode = dict[index].value;
@@ -125,6 +130,7 @@ void encode(FILE *in, FILE *out) {
 			//output the code
 			write12(out, (unsigned long) stringCode);
 			stringCode = character;
+			printf("%d\n", index);
 		}
 	}
 	write12(out, (unsigned long)stringCode);
