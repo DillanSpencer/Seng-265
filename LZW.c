@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 		if (inputFile == 0) {
 			printf("Read error: file not found or cannot be read");
 			exit(2);
-		}		
+		}
 
 		/* Check if can encode, then encode the line */
 		if (mode == 'e') {
@@ -109,14 +109,14 @@ void encode(FILE *in, FILE *out) {
 
 	if ((stringCode = fgetc(in)) == EOF)
 		stringCode = END_CODE;
-		
+
 	int count = 0;
 
 	/* loop through the file until reaches the EOF */
 	while ((character = fgetc(in)) != -1) {
 		count++;
 		index = findChild(stringCode, character);
-		
+
 		if(index > DICTSIZE - 1) return;
 
 		if (dict[index].value != -1)
@@ -142,7 +142,7 @@ void decode(FILE *in, FILE *out) {
 	unsigned int nextCode;
 	unsigned int newCode;
 	unsigned int oldCode;
-	int character;
+	unsigned int character;
 	unsigned int count;
 	nextCode = FIRST_CODE;
 	oldCode = (unsigned int) read12(in);
@@ -163,7 +163,6 @@ void decode(FILE *in, FILE *out) {
 
 		while (count > 0) {
 			putc(decodeStack[--count], out);
-			fflush(out);
 		}
 
 		if (nextCode <= MAX_CODE) {
@@ -173,9 +172,9 @@ void decode(FILE *in, FILE *out) {
 		}
 
 		oldCode = newCode;
-
+		printf("%c", character);
 	}
-
+	fflush(out);
 }
 
 unsigned int findChild(int parentCode, int childChar) {
