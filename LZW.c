@@ -1,10 +1,9 @@
 /*
  ============================================================================
- Name        : Assignment.c
+ Name        : LZW.c
  Author      : Dillan
- Version     :
- Copyright   : Your copyright notice
- Description : Hello World in C, Ansi-style
+ Version     : 1.0
+ Description : LZW encoder / decoder for Seng 265
  ============================================================================
  */
 
@@ -70,19 +69,18 @@ int main(int argc, char *argv[]) {
 		if (inputFile == 0) {
 			printf("Read error: file not found or cannot be read");
 			exit(2);
-		}
-
-		/* Create a valid output file */
-		//strip_lzw_ext(fileName);
-		outputFile = fopen(strcat(fileName, ".txt"), "w");
+		}		
 
 		/* Check if can encode, then encode the line */
 		if (mode == 'e') {
+			outputFile = fopen(strcat(fileName, ".LZW"), "w");
 			encode(inputFile, outputFile);
 		}
 
 		/* Check if can decode, then decode the line */
 		else if (mode == 'd') {
+			strip_lzw_ext(fileName);
+			outputFile = fopen(fileName, "w");
 			decode(inputFile, outputFile);
 		}
 
@@ -113,7 +111,7 @@ void encode(FILE *in, FILE *out) {
 		stringCode = END_CODE;
 
 	/* loop through the file until reaches the EOF */
-	while ((character = fgetc(in)) != EOF) {
+	while ((character = fgetc(in)) != -1) {
 		index = findChild(stringCode, character);
 
 		if (dict[index].value != -1)
@@ -125,12 +123,13 @@ void encode(FILE *in, FILE *out) {
 				dict[index].character = (char) character;
 			}
 			//output the code
-			write12(out, stringCode);
+			write12(out, (unsigned long) stringCode);
 			stringCode = character;
 		}
 	}
-	write12(out, stringCode);
-	write12(out, END_CODE);
+	write12(out, (unsigned long)stringCode);
+	flush12(out);
+	write12(out, (unsigned long) END_CODE);
 }
 
 void decode(FILE *in, FILE *out) {
@@ -200,9 +199,9 @@ unsigned int findChild(int parentCode, int childChar) {
 }
 
 unsigned int decodeString(unsigned int count, unsigned int code) {
-
 	while (code > 255) {
 		decodeStack[count++] = dict[code].character;
+
 		code = dict[code].parent;
 	}
 
@@ -243,7 +242,6 @@ int read12(FILE *infil) {
 
 		retval = number1;
 	}
-	printf("%d\n", retval);
 	return (retval);
 }
 
