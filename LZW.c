@@ -41,6 +41,9 @@ void decode(FILE*, FILE*);
 unsigned int findChild(int, int);
 unsigned int decodeString(unsigned int, unsigned int);
 
+/* Reset the Dictionary */
+void resetDictionary();
+
 /* Provided functions */
 int read12(FILE *infil);
 int write12(FILE *outfil, int int12);
@@ -114,9 +117,10 @@ void encode(FILE *in, FILE *out) {
 	while ((character = getc(in)) != -1) {
 
 		index = findChild(stringCode, character);
+
 		if(index == -1){
-			write12(out, (unsigned int) character);
-			continue;
+			resetDictionary();
+			index = findChild(stringCode, character);
 		}
 
 		if (index > DICTSIZE - 1)
@@ -221,6 +225,15 @@ unsigned int decodeString(unsigned int count, unsigned int code) {
 
 	decodeStack[count++] = (char) code;
 	return count;
+}
+
+void resetDictionary(){
+	int i;
+	for (i = 0; i < DICTSIZE; i++) {
+			dict[i].value = UNUSED;
+			dict[i].character = '0';
+			dict[i].parent = 0;
+		}
 }
 
 /*****************************************************************************/
