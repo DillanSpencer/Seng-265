@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 		/* Copy the argument into the fileName */
 		strcpy(fileName, argv[1]);
 
-		inputFile = fopen(fileName, "r");
+		inputFile = fopen(fileName, "rb");
 		/* Check if there is no valid file name */
 		if (inputFile == 0) {
 			printf("Read error: file not found or cannot be read");
@@ -73,14 +73,14 @@ int main(int argc, char *argv[]) {
 
 		/* Check if can encode, then encode the line */
 		if (mode == 'e') {
-			outputFile = fopen(strcat(fileName, ".LZW"), "w");
+			outputFile = fopen(strcat(fileName, ".LZW"), "wb");
 			encode(inputFile, outputFile);
 		}
 
 		/* Check if can decode, then decode the line */
 		else if (mode == 'd') {
 			strip_lzw_ext(fileName);
-			outputFile = fopen(fileName, "w");
+			outputFile = fopen(fileName, "wb");
 			decode(inputFile, outputFile);
 		}
 
@@ -107,17 +107,20 @@ void encode(FILE *in, FILE *out) {
 		dict[i].value = UNUSED;
 	}
 
-	if ((stringCode = fgetc(in)) == EOF)
+	if ((stringCode = getc(in)) == EOF)
 		stringCode = END_CODE;
 
-	int count = 0;
-
 	/* loop through the file until reaches the EOF */
-	while ((character = fgetc(in)) != -1) {
-		count++;
-		index = findChild(stringCode, character);
+	while ((character = getc(in)) != -1) {
 
-		if(index > DICTSIZE - 1) return;
+		index = findChild(stringCode, character);
+		if(index == -1){
+			write12(out, (unsigned int) character);
+			continue;
+		}
+
+		if (index > DICTSIZE - 1)
+			return;
 
 		if (dict[index].value != -1)
 			stringCode = dict[index].value;
@@ -130,10 +133,9 @@ void encode(FILE *in, FILE *out) {
 			//output the code
 			write12(out, (unsigned long) stringCode);
 			stringCode = character;
-			printf("%d\n", index);
 		}
 	}
-	write12(out, (unsigned long)stringCode);
+	write12(out, (unsigned long) stringCode);
 	flush12(out);
 	write12(out, (unsigned long) END_CODE);
 }
@@ -172,7 +174,6 @@ void decode(FILE *in, FILE *out) {
 		}
 
 		oldCode = newCode;
-		printf("%c", character);
 	}
 	fflush(out);
 }
@@ -180,6 +181,7 @@ void decode(FILE *in, FILE *out) {
 unsigned int findChild(int parentCode, int childChar) {
 	int index;
 	int offset;
+	int count = 0;
 
 	index = (childChar << (BITS - 8)) ^ parentCode;
 
@@ -189,6 +191,7 @@ unsigned int findChild(int parentCode, int childChar) {
 		offset = DICTSIZE - index;
 
 	while (1) {
+		count++;
 		if (dict[index].value == UNUSED)
 			return index;
 
@@ -200,7 +203,13 @@ unsigned int findChild(int parentCode, int childChar) {
 
 		if (index < 0)
 			index += DICTSIZE;
+
+		//base case
+		if (count >= MAX_CODE){
+			break;
+		}
 	}
+	return -1;
 }
 
 unsigned int decodeString(unsigned int count, unsigned int code) {
