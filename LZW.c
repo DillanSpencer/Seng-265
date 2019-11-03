@@ -156,7 +156,7 @@ void decode(FILE *in, FILE *out) {
 		return;
 
 	character = oldCode;
-	putc(oldCode, out);
+	fwrite(&oldCode, 1, 1, out);
 
 	while ((newCode = (unsigned int) read12(in)) != EOF) {
 		if (newCode >= nextCode) {
@@ -168,7 +168,7 @@ void decode(FILE *in, FILE *out) {
 		character = decodeStack[count - 1];
 
 		while (count > 0) {
-			putc(decodeStack[--count], out);
+			fwrite(&decodeStack[--count], 1, 1, out);
 		}
 
 		if (nextCode <= MAX_CODE) {
