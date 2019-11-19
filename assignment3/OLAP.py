@@ -125,42 +125,6 @@ def computeAggregates(dictionary):
             sys.stdout.write('" ')
 
 
-def getMax(dictionary, col):
-    high = None
-    for row in dictionary:
-        current = float(row[col])
-        if high is None or current > high:
-            high = current
-    return high
-
-
-def getMin(dictionary, col):
-    low = None
-    for row in dictionary:
-        current = float(row[col])
-        if low is None or current < low:
-            low = current
-    return low
-
-
-def getMean(dictionary, col):
-    sum = 0
-    count = 0
-    for row in dictionary:
-        current = float(row[col])
-        sum += current
-        count += 1
-    return sum / count
-
-
-def getSum(dictionary, col):
-    sum = 0
-    for row in dictionary:
-        current = float(row[col])
-        sum += current
-    return sum
-
-
 def main():
     addArgs()
     dict_csv = fileOpen(args.file)
