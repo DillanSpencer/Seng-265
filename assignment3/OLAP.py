@@ -12,6 +12,7 @@ def addArgs():
     global parsers
     global functions
     global values
+    global group
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', dest='file', required=True)
     parser.add_argument('--top', dest='top', action='append', nargs=2)
@@ -26,7 +27,7 @@ def addArgs():
     argsList = []
     values = {}
     parsers = ['min', 'max', 'mean', 'sum']
-    functions = ['group-by', 'count']
+    functions = ['count']
 
     for i in sys.argv[3:]:
         argsList.append(i.strip('--'))
@@ -37,6 +38,8 @@ def addArgs():
             values[field] = 0.0
         elif field == 'top':
             values[field + "_" + argsList[index + 1] + "_" + argsList[index + 2]] = 0.0
+        elif field == 'group-by':
+            group = argsList[index + 1]
 
 
 def fileOpen(file):
@@ -125,10 +128,85 @@ def computeAggregates(dictionary):
             sys.stdout.write('" ')
 
 
+def computeGroupBy(dictionary):
+    count = {}
+    high = {}
+    low = {}
+    sum = {}
+    groups = {}
+    for row in dictionary:
+        # Create a new id for unique groups
+        if row[group] not in groups:
+            groups[row[group]] = 0
+
+        currGroup = row[group]
+        for index in values:
+
+            if index.find("top") != -1:
+                first, second, third = index.split("_")
+            elif index.find("_") != -1:
+                first, second = index.split("_")
+            else:
+                first = index
+
+            # Finds Max Value
+            if first == 'max':
+                val = float(row[second])
+                if currGroup not in high:
+                    high[currGroup] = val
+                else:
+                    if val > high[currGroup]:
+                        high[currGroup] = val
+            if first == 'min':
+                val = float(row[second])
+                if currGroup not in low:
+                    low[currGroup] = val
+                else:
+                    if val < low[currGroup]:
+                        low[currGroup] = val
+            if first == 'mean' or first == 'sum':
+                val = float(row[second])
+                if currGroup not in sum:
+                    sum[currGroup] = val
+                else:
+                    sum[currGroup] += val
+
+        # Increment count for each group
+        if currGroup not in count:
+            count[currGroup] = 1
+        else:
+            if count[currGroup] == 140000:
+                print("WTF")
+            count[currGroup] += 1
+    for output in sorted(groups):
+        sys.stdout.write(output + ": ")
+        for val in values:
+            if val.find("top") != -1:
+                first, second, third = val.split("_")
+            elif val.find("_") != -1:
+                first, second = val.split("_")
+            else:
+                first = val
+
+            # Finds Max Value
+            if first == 'max':
+                sys.stdout.write(str(high[output]) + ", ")
+            elif first == 'min':
+                sys.stdout.write(str(low[output]) + ", ")
+            elif first == 'mean':
+                sys.stdout.write(str(sum[output] / count[output]))
+            elif first == 'sum':
+                sys.stdout.write(str(sum[output]))
+            elif first == 'count':
+                sys.stdout.write(str(count[output]) + ", ")
+        sys.stdout.write("\n")
+
+
 def main():
     addArgs()
     dict_csv = fileOpen(args.file)
-    computeAggregates(dict_csv)
+    # computeAggregates(dict_csv)
+    computeGroupBy(dict_csv)
 
 
 if __name__ == '__main__':
