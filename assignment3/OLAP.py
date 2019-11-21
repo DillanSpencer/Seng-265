@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import sys
 import csv
 
@@ -28,6 +27,7 @@ def addArgs():
     values = {}
     parsers = ['min', 'max', 'mean', 'sum']
     functions = ['count']
+    group = None
 
     for i in sys.argv[3:]:
         argsList.append(i.strip('--'))
@@ -53,101 +53,41 @@ def fileOpen(file):
         sys.stderr.write('Error: File not found.')
 
 
-def computeAggregates(dictionary):
-    high = None
-    low = None
-    sum = 0
-    count = 0
-    topList = {}
-    for row in dictionary:
-        for index in values:
-            if index.find("top") != -1:
-                first, second, third = index.split("_")
-            elif index.find("_") != -1:
-                first, second = index.split("_")
-            else:
-                first = index
-
-            # Display Fields
-            if count == 0:
-                sys.stdout.write(index + ", ")
-
-            # Finds Max Value
-            if first == 'max':
-                current = float(row[second])
-                if high is None or current > high:
-                    high = current
-
-            # Finds Min Value
-            elif first == 'min':
-                current = float(row[second])
-                if low is None or current < low:
-                    low = current
-            # Find the Mean
-            elif first == 'mean' or first == 'sum':
-                current = float(row[second])
-                sum += current
-            elif first == 'top':
-                current = row[third]
-                if current not in topList:
-                    topList[current] = 1
-                else:
-                    topList[current] += 1
-
-        # Increment count
-        count += 1
-    # Output values
-    sys.stdout.write("\n")
-    for output in values:
-        if output.find("top") != -1:
-            first, second, third = output.split("_")
-        elif output.find("_") != -1:
-            first, second = output.split("_")
-        else:
-            first = index
-        # Finds Max Value
-        if first == 'max':
-            sys.stdout.write(str(high) + ", ")
-        elif first == 'min':
-            sys.stdout.write(str(low) + ", ")
-        elif first == 'mean':
-            sys.stdout.write(str(sum / count))
-        elif first == 'sum':
-            sys.stdout.write(str(sum))
-        elif first == 'count':
-            sys.stdout.write(str(count) + ", ")
-        elif first == 'top':
-            sys.stdout.write('"')
-            for val in range(0, int(second)):
-                maxVal = max(topList.items(), key=lambda x: x[1])
-                if val == 0:
-                    sys.stdout.write(str(maxVal[0]) + ": " + str(maxVal[1]))
-                else:
-                    sys.stdout.write("," + str(maxVal[0]) + ": " + str(maxVal[1]))
-                del topList[maxVal[0]]
-            sys.stdout.write('" ')
-
-
-def computeGroupBy(dictionary):
+def computeAggregates(dictionary, should_group):
     count = {}
     high = {}
     low = {}
-    sum = {}
+    sum_num = {}
     groups = {}
+    top_list = {}
+    total_count = 0
     for row in dictionary:
         # Create a new id for unique groups
-        if row[group] not in groups:
-            groups[row[group]] = 0
+        if should_group:
+            if row[group] not in groups:
+                groups[row[group]] = 0
 
-        currGroup = row[group]
         for index in values:
-
-            if index.find("top") != -1:
-                first, second, third = index.split("_")
-            elif index.find("_") != -1:
-                first, second = index.split("_")
+            if should_group:
+                if index.find("top") != -1:
+                    first, second, third = index.split("_")
+                    currGroup = (row[group] + "_" + row[third])
+                elif index.find("_") != -1:
+                    first, second = index.split("_")
+                    currGroup = (second + "_" + row[group])
+                else:
+                    first = index
+                    currGroup = (first + "_" + row[group])
             else:
-                first = index
+                if index.find("top") != -1:
+                    first, second, third = index.split("_")
+                    currGroup = row[third]
+                elif index.find("_") != -1:
+                    first, second = index.split("_")
+                    currGroup = second
+                else:
+                    first = index
+                    currGroup = first
 
             # Finds Max Value
             if first == 'max':
@@ -157,30 +97,88 @@ def computeGroupBy(dictionary):
                 else:
                     if val > high[currGroup]:
                         high[currGroup] = val
-            if first == 'min':
+            elif first == 'min':
                 val = float(row[second])
                 if currGroup not in low:
                     low[currGroup] = val
                 else:
                     if val < low[currGroup]:
                         low[currGroup] = val
-            if first == 'mean' or first == 'sum':
+            elif first == 'mean' or first == 'sum':
                 val = float(row[second])
-                if currGroup not in sum:
-                    sum[currGroup] = val
+                if currGroup not in sum_num:
+                    sum_num[currGroup] = val
                 else:
-                    sum[currGroup] += val
+                    sum_num[currGroup] += val
+            elif first == 'top':
+                if currGroup not in top_list:
+                    top_list[currGroup] = 1
+                else:
+                    top_list[currGroup] += 1
 
-        # Increment count for each group
-        if currGroup not in count:
-            count[currGroup] = 1
+            # Increment count for each group
+            if first == 'count':
+                if currGroup not in count:
+                    count[currGroup] = 1
+                else:
+                    if count[currGroup] == 140000:
+                        print("WTF")
+                    count[currGroup] += 1
+            total_count += 1
+
+    # OUTPUT ##################################
+    if should_group:
+        outputGroup(groups, top_list, high, low, count, sum_num)
+    else:
+        outputAggregates(top_list, high, low, total_count, sum_num)
+
+
+def outputAggregates(top_list, high, low, count, sum_num):
+    for i in values:
+        sys.stdout.write(i.lower() + ",")
+    sys.stdout.write("\n")
+
+    for val in values:
+
+        if val.find("top") != -1:
+            first, second, third = val.split("_")
+        elif val.find("_") != -1:
+            first, second = val.split("_")
         else:
-            if count[currGroup] == 140000:
-                print("WTF")
-            count[currGroup] += 1
+            first = val
+
+        if first == 'max':
+            sys.stdout.write('"' + str(high[second]) + '"')
+        elif first == 'min':
+            sys.stdout.write(str(low[second]) + ",")
+        elif first == 'mean':
+            sys.stdout.write(str('"' + str(sum_num[second] / count)) + '"')
+        elif first == 'sum':
+            sys.stdout.write('"' + str(sum_num[second]) + '"')
+        elif first == 'count':
+            sys.stdout.write(str(count[first]) + ",")
+        elif first == 'top':
+            sys.stdout.write('"')
+            for i in range(0, int(second)):
+                maxVal = max(top_list.items(), key=lambda x: x[1])
+                if val == 0:
+                    sys.stdout.write(str(maxVal[0]) + ": " + str(maxVal[1]))
+                else:
+                    sys.stdout.write(str(maxVal[0]) + ": " + str(maxVal[1]) + ",")
+                del top_list[maxVal[0]]
+            sys.stdout.write('" ')
+
+
+def outputGroup(groups, top_list, high, low, count, sum):
+    sys.stdout.write(group + ",")
+    for i in values:
+        sys.stdout.write(i.lower() + ",")
+    sys.stdout.write("\n")
     for output in sorted(groups):
-        sys.stdout.write(output + ": ")
+        sys.stdout.write(output + ",")
+
         for val in values:
+
             if val.find("top") != -1:
                 first, second, third = val.split("_")
             elif val.find("_") != -1:
@@ -188,25 +186,37 @@ def computeGroupBy(dictionary):
             else:
                 first = val
 
-            # Finds Max Value
             if first == 'max':
-                sys.stdout.write(str(high[output]) + ", ")
+                sys.stdout.write(str(high[second + "_" + output]) + ",")
             elif first == 'min':
-                sys.stdout.write(str(low[output]) + ", ")
+                sys.stdout.write(str(low[second + "_" + output]) + ",")
             elif first == 'mean':
-                sys.stdout.write(str(sum[output] / count[output]))
+                sys.stdout.write(str(sum[second + "_" + output] / count["count" + "_" + output]))
             elif first == 'sum':
-                sys.stdout.write(str(sum[output]))
+                sys.stdout.write(str(sum[second + "_" + output]))
             elif first == 'count':
-                sys.stdout.write(str(count[output]) + ", ")
+                sys.stdout.write(str(count[first + "_" + output]) + ",")
+            elif first == 'top':
+                sys.stdout.write('"')
+                for i in range(0, int(second)):
+                    maxVal = max(top_list.items(), key=lambda x: x[1])
+                    if val == 0:
+                        sys.stdout.write(str(maxVal[0]) + ": " + str(maxVal[1]))
+                    else:
+                        sys.stdout.write(str(maxVal[0]) + ": " + str(maxVal[1]) + ",")
+                    del top_list[maxVal[0]]
+                sys.stdout.write('" ')
         sys.stdout.write("\n")
 
 
 def main():
     addArgs()
     dict_csv = fileOpen(args.file)
-    # computeAggregates(dict_csv)
-    computeGroupBy(dict_csv)
+    # Group by
+    if group is not None:
+        computeAggregates(dict_csv, True)
+    else:
+        computeAggregates(dict_csv, False)
 
 
 if __name__ == '__main__':
